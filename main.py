@@ -170,11 +170,11 @@ async def receive_question(question: str = Form(...), file: UploadFile = File(No
             func_answer = await fetch_answer(task_id=task_id, question=question, file_path=file)
         answer = func_answer or await read_answer(task_id=task_id, question=question)
     elif task_id in ['GA1.13']:
-        answer = "https://github.com/Shambhavi2896/test"
+        answer = "https://raw.githubusercontent.com/Shambhavi2896/email-json-demo/refs/heads/main/email.json"
     elif task_id in ['GA2.1']:
         answer = await read_answer(task_id=task_id, question=question)
     elif task_id in ['GA2.3']:
-        answer = "https://github.com/Shambhavi2896/website"
+        answer = "https://shambhavi2896.github.io/"
     elif task_id in ['GA2.2', 'GA2.4']:
         if file:
             print(file)
