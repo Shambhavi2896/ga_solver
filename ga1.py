@@ -115,15 +115,28 @@ import subprocess
 import hashlib
 from fastapi import UploadFile
 
-async def GA1_3(file: UploadFile):
-    try:
-        import hashlib
-        import subprocess
-        import shutil
-        import os
+import hashlib
+import subprocess
+import shutil
+import os
+from typing import Union
 
-        # Read the content of the uploaded file
-        file_content = await file.read()
+def GA1_3(file_path: str) -> Union[str, dict]:
+    """
+    Process a file with Prettier and return its SHA-256 hash, or fallback to direct hashing.
+    
+    Args:
+        file_path: Path to the file to process
+        
+    Returns:
+        str: SHA-256 hash of formatted content (success)
+        dict: {"error": error_message} if processing fails
+        dict: {"hash": sha256} if falling back to direct hashing
+    """
+    try:
+        # Read the file content
+        with open(file_path, 'rb') as f:
+            file_content = f.read()
 
         # Find npx executable path
         npx_path = shutil.which("npx")
@@ -148,10 +161,9 @@ async def GA1_3(file: UploadFile):
 
         # Run Prettier synchronously using subprocess.run
         process = subprocess.run(
-            [npx_path, "-y", "prettier@3.4.2", "--parser", "markdown"],
-            input=file_content.decode("utf-8"),
-            text=True,
-            capture_output=True
+            [npx_path, "-y", "prettier@3.4.2", "--parser", "markdown", file_path],
+            capture_output=True,
+            text=True
         )
 
         # Check if Prettier returned an error
@@ -160,8 +172,7 @@ async def GA1_3(file: UploadFile):
 
         # Retrieve and hash the formatted output
         formatted_output = process.stdout.encode("utf-8")
-        answer = hashlib.sha256(formatted_output).hexdigest()
-        return answer
+        return hashlib.sha256(formatted_output).hexdigest()
 
     except Exception as e:
         # Catch and return any exception that occurs
