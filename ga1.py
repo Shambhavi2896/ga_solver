@@ -122,27 +122,23 @@ from typing import Union, BinaryIO
 
 def GA1_3(file_input: Union[str, BinaryIO]) -> Union[str, dict]:
     """
-    Process a file with Prettier and return its SHA-256 hash, or fallback to direct hashing.
-    
+    Calculate SHA256 hash of a file after formatting with Prettier
+
     Args:
-        file_input: Either a file path (str) or a file-like object with .read() method
-        
+        filename: Path to the file to format and hash
+
     Returns:
-        str: SHA-256 hash of formatted content (success)
-        dict: {"error": error_message} if processing fails
-        dict: {"hash": sha256} if falling back to direct hashing
+        SHA256 hash of the formatted file
     """
     try:
-        # Read the file content
-        if isinstance(file_input, str):
-            # Handle file path input
-            with open(file_input, 'rb') as f:
-                file_content = f.read()
-            file_path = file_input
-        else:
-            # Handle file-like object input
-            file_content = file_input.read()
-            file_path = None  # Will use stdin for Prettier
+        import hashlib
+        import subprocess
+        import tempfile
+        import shutil
+
+        # Check if file exists
+        if not os.path.exists(filename):
+            return f"Error: File {filename} not found"
 
         # Find npx executable path
         npx_path = shutil.which("npx")
@@ -161,40 +157,38 @@ def GA1_3(file_input: Union[str, BinaryIO]) -> Union[str, dict]:
                     break
 
         if not npx_path:
-            # If npx is not found, calculate hash directly
-            hash_value = hashlib.sha256(file_content).hexdigest()
-            return {"hash": hash_value}
+            # If npx is not found, read the file and calculate hash directly
+            with open(filename, "rb") as f:
+                content = f.read()
+                hash_obj = hashlib.sha256(content)
+                hash_value = hash_obj.hexdigest()
+            return f"{hash_value} *-"
 
-        # Prepare Prettier command
-        prettier_cmd = [npx_path, "-y", "prettier@3.4.2", "--parser", "markdown"]
-        
-        if file_path:
-            # Use file path if available
-            process = subprocess.run(
-                prettier_cmd + [file_path],
-                capture_output=True,
-                text=True
-            )
-        else:
-            # Use stdin if file-like object was provided
-            process = subprocess.run(
-                prettier_cmd,
-                input=file_content.decode('utf-8'),
-                capture_output=True,
-                text=True
+        # On Windows, we need to use shell=True and the full command
+        # Run prettier directly and calculate hash from its output without saving to a file
+        prettier_cmd = f'"{npx_path}" -y prettier@3.4.2 "{filename}"'
+
+        try:
+            # Run prettier with shell=True on Windows
+            prettier_output = subprocess.check_output(
+                prettier_cmd, shell=True, text=True, stderr=subprocess.STDOUT
             )
 
-        # Check if Prettier returned an error
-        if process.returncode != 0:
-            return {"error": f"Prettier failed: {process.stderr}"}
+            # Calculate hash directly from the prettier output
+            hash_obj = hashlib.sha256(prettier_output.encode("utf-8"))
+            hash_value = hash_obj.hexdigest()
 
-        # Retrieve and hash the formatted output
-        formatted_output = process.stdout.encode("utf-8")
-        return hashlib.sha256(formatted_output).hexdigest()
+            return f"{hash_value} *-"
+
+        except subprocess.CalledProcessError as e:
+            return f"Error running prettier: {e.output}"
 
     except Exception as e:
-        # Catch and return any exception that occurs
-        return {"error": str(e)}
+        # Provide more detailed error information
+        import traceback
+
+        error_details = traceback.format_exc()
+        return f"Error calculating SHA256 hash: {str(e)}\nDetails: {error_details}"
 
 # Let's make sure you can write formulas in Google Sheets. Type this formula into Google Sheets.
 # (It won't work in Excel)= SUM(ARRAY_CONSTRAIN(SEQUENCE(100, 100, 6, 10), 1, 10))
