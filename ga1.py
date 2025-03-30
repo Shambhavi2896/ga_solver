@@ -160,8 +160,8 @@ async def GA1_3(file: UploadFile):
 
         # Retrieve and hash the formatted output
         formatted_output = process.stdout.encode("utf-8")
-        hash_value = hashlib.sha256(formatted_output).hexdigest()
-        return hash_value
+        answer = hashlib.sha256(formatted_output).hexdigest()
+        return answer
 
     except Exception as e:
         # Catch and return any exception that occurs
