@@ -170,11 +170,11 @@ async def receive_question(question: str = Form(...), file: UploadFile = File(No
             func_answer = await fetch_answer(task_id=task_id, question=question, file_path=file)
         answer = func_answer or await read_answer(task_id=task_id, question=question)
     elif task_id in ['GA1.13']:
-        answer = "https://raw.githubusercontent.com/Telvinvarghese/test/main/email.json"
+        answer = "https://github.com/Shambhavi2896/test"
     elif task_id in ['GA2.1']:
         answer = await read_answer(task_id=task_id, question=question)
     elif task_id in ['GA2.3']:
-        answer = "https://telvinvarghese.github.io/website/"
+        answer = "https://github.com/Shambhavi2896/website"
     elif task_id in ['GA2.2', 'GA2.4']:
         if file:
             print(file)
@@ -190,7 +190,7 @@ async def receive_question(question: str = Form(...), file: UploadFile = File(No
     elif task_id in ['GA2.6']:
         answer = "https://api-git-main-telvinvargheses-projects.vercel.app/api"
     elif task_id in ['GA2.7']:
-        answer = "https://github.com/Telvinvarghese/test"
+        answer = "https://github.com/Shambhavi2896/test"
     elif task_id in ['GA2.8']:
         answer = "https://hub.docker.com/repository/docker/telvinvarghese/py-hello/general"
     elif task_id in ['GA2.9']:
@@ -216,7 +216,7 @@ async def receive_question(question: str = Form(...), file: UploadFile = File(No
     elif task_id in ['GA4.3']:
         answer = "https://tds-ga4-3.vercel.app/api/outline"
     elif task_id in ['GA4.8']:
-        answer = "https://github.com/Telvinvarghese/test"
+        answer = "https://github.com/Shambhavi2896/test"
     elif task_id in ['GA4.9']:
         if file:
             print(file)
