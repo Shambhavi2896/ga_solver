@@ -117,26 +117,52 @@ from fastapi import UploadFile
 
 async def GA1_3(file: UploadFile):
     try:
+        import hashlib
+        import subprocess
+        import shutil
+        import os
+
         # Read the content of the uploaded file
         file_content = await file.read()
-        
+
+        # Find npx executable path
+        npx_path = shutil.which("npx")
+        if not npx_path:
+            # Try common locations on Windows
+            possible_paths = [
+                r"C:\Program Files\nodejs\npx.cmd",
+                r"C:\Program Files (x86)\nodejs\npx.cmd",
+                os.path.join(os.environ.get("APPDATA", ""), "npm", "npx.cmd"),
+                os.path.join(os.environ.get("LOCALAPPDATA", ""), "npm", "npx.cmd"),
+            ]
+
+            for path in possible_paths:
+                if os.path.exists(path):
+                    npx_path = path
+                    break
+
+        if not npx_path:
+            # If npx is not found, calculate hash directly
+            hash_value = hashlib.sha256(file_content).hexdigest()
+            return {"hash": hash_value}
+
         # Run Prettier synchronously using subprocess.run
         process = subprocess.run(
-            ["npx", "-y", "prettier@3.4.2", "--parser", "markdown"],
-            input=file_content,
+            [npx_path, "-y", "prettier@3.4.2", "--parser", "markdown"],
+            input=file_content.decode("utf-8"),
             text=True,
             capture_output=True
         )
-        
+
         # Check if Prettier returned an error
         if process.returncode != 0:
             return {"error": f"Prettier failed: {process.stderr}"}
-        
+
         # Retrieve and hash the formatted output
         formatted_output = process.stdout.encode("utf-8")
         hash_value = hashlib.sha256(formatted_output).hexdigest()
-        return {"hash": hash_value}
-    
+        return hash_value
+
     except Exception as e:
         # Catch and return any exception that occurs
         return {"error": str(e)}
