@@ -327,7 +327,7 @@ async def GA1_10(file: UploadFile):
         
         # Generate the hash of the JSON representation of the data
         json_data = json.dumps(data, separators=(",", ":"), ensure_ascii=False)
-        return {"hash": hashlib.sha256(json_data.encode()).hexdigest()}
+        return hashlib.sha256(json_data.encode()).hexdigest()
     
     except UnicodeDecodeError:
         return {"error": "File encoding error. Ensure the file is UTF-8 encoded."}
@@ -418,7 +418,7 @@ async def GA1_12(question: str, zip_file: UploadFile):
                                     pass  # Ignore invalid values
 
         # Return the total sum
-        return {"total_sum": total_sum}
+        return total_sum
 
     except zipfile.BadZipFile:
         return {"error": "Invalid ZIP file"}
@@ -486,7 +486,7 @@ async def GA1_14(question: str, zip_file: UploadFile):
         sha256_hash.update(concatenated_data)
 
         # Return the final SHA-256 hash
-        return {"hash": sha256_hash.hexdigest()}
+        return sha256_hash.hexdigest()
 
     except zipfile.BadZipFile:
         return {"error": "Invalid ZIP file"}
