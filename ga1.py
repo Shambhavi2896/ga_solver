@@ -114,19 +114,18 @@ EXT_TO_PARSER = {".js": "babel", ".ts": "typescript", ".json": "json", ".css": "
 import subprocess
 import hashlib
 from fastapi import UploadFile
-
 import hashlib
 import subprocess
 import shutil
 import os
-from typing import Union
+from typing import Union, BinaryIO
 
-def GA1_3(file_path: str) -> Union[str, dict]:
+def GA1_3(file_input: Union[str, BinaryIO]) -> Union[str, dict]:
     """
     Process a file with Prettier and return its SHA-256 hash, or fallback to direct hashing.
     
     Args:
-        file_path: Path to the file to process
+        file_input: Either a file path (str) or a file-like object with .read() method
         
     Returns:
         str: SHA-256 hash of formatted content (success)
@@ -135,8 +134,15 @@ def GA1_3(file_path: str) -> Union[str, dict]:
     """
     try:
         # Read the file content
-        with open(file_path, 'rb') as f:
-            file_content = f.read()
+        if isinstance(file_input, str):
+            # Handle file path input
+            with open(file_input, 'rb') as f:
+                file_content = f.read()
+            file_path = file_input
+        else:
+            # Handle file-like object input
+            file_content = file_input.read()
+            file_path = None  # Will use stdin for Prettier
 
         # Find npx executable path
         npx_path = shutil.which("npx")
@@ -159,12 +165,24 @@ def GA1_3(file_path: str) -> Union[str, dict]:
             hash_value = hashlib.sha256(file_content).hexdigest()
             return {"hash": hash_value}
 
-        # Run Prettier synchronously using subprocess.run
-        process = subprocess.run(
-            [npx_path, "-y", "prettier@3.4.2", "--parser", "markdown", file_path],
-            capture_output=True,
-            text=True
-        )
+        # Prepare Prettier command
+        prettier_cmd = [npx_path, "-y", "prettier@3.4.2", "--parser", "markdown"]
+        
+        if file_path:
+            # Use file path if available
+            process = subprocess.run(
+                prettier_cmd + [file_path],
+                capture_output=True,
+                text=True
+            )
+        else:
+            # Use stdin if file-like object was provided
+            process = subprocess.run(
+                prettier_cmd,
+                input=file_content.decode('utf-8'),
+                capture_output=True,
+                text=True
+            )
 
         # Check if Prettier returned an error
         if process.returncode != 0:
