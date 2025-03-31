@@ -28,7 +28,6 @@ data = {{"model": model,"messages": messages}}
 headers = {{"Content-Type": "application/json","Authorization": "Bearer dummy_api_key"}}
 response = httpx.post("https://api.openai.com/v1/chat/completions", json=data, headers=headers)
 print(response.json())"""
-
     return python_code
 
 # question="""
@@ -148,9 +147,7 @@ def GA3_3(question: str):
         }
     }
 
-    data_string = json.dumps(json_data)
-
-    return data_string
+    return json_data  # Return parsed JSON object
 
 
 # question="""
@@ -192,9 +189,8 @@ async def GA3_4(question: str, file: UploadFile):
             }
         ]
     }
-    data_string = json.dumps(json_data)
 
-    return data_string
+    return json_data
 
 
 def GA3_5(question: str):
@@ -206,17 +202,16 @@ def GA3_5(question: str):
             f"Dear user, please verify your transaction code {code} sent to {email}" for code, email in matches]
         print(extracted_messages)  # Debugging line
 
-        json_data = {
+        result = {
             "model": "text-embedding-3-small",
             "input": extracted_messages
         }
-        data_string = json.dumps(json_data)
-        return data_string
+        return result 
     else:
         return {"error": "Invalid format"}
 
 
-async def GA3_6(question: str):
+def GA3_6(question: str):
     python_code = """
 import numpy as np
 def most_similar(embeddings):
