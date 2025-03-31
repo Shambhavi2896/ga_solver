@@ -14,36 +14,61 @@ from fastapi import UploadFile  # type: ignore
 
 
 def GA4_1(question: str):
-    match = re.search(
-        r'What is the total number of ducks across players on page number (\d+)', question)
-    page_number = match.group(1)
-    url = "https://stats.espncricinfo.com/stats/engine/stats/index.html?class=2;page=" + \
-        page_number + ";template=results;type=batting"
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-    response = requests.get(url, headers=headers)
-    if response.status_code != 200:
-        raise f'Failed to fetch the page. Status code: {response.status_code}'
-    soup = BeautifulSoup(response.text, "html.parser")
-    tables = soup.find_all("table", {"class": "engineTable"})
-    stats_table = None
-    for table in tables:
-        if table.find("th", string="Player"):
-            stats_table = table
-            break
-    if not stats_table:
-        print("Could not find the batting stats table on the page.")
-    headers = [th.get_text(strip=True)for th in stats_table.find_all("th")]
-    # print(headers)
-    rows = stats_table.find_all("tr", {"class": "data1"})
-    sum_ducks = 0
-    for row in rows:
-        cells = row.find_all("td")
-        if len(cells) > 12:
-            duck_count = cells[12].get_text(strip=True)
-            if duck_count.isdigit():  # Check if it's a number
-                sum_ducks += int(duck_count)
-    # print(sum_ducks)
-    return sum_ducks
+    """
+    Calculates total ducks from ESPN Cricinfo's ODI batting stats for any specified page
+    Handles edge cases and column position changes
+    """
+    try:
+        # Extract page number using regex
+        page_match = re.search(r'page number (\d+)', question)
+        if not page_match:
+            return "Error: Page number not found in question"
+            
+        page_number = page_match.group(1)
+        
+        # Construct dynamic URL
+        url = f"https://stats.espncricinfo.com/stats/engine/stats/index.html?class=2;page={page_number};template=results;type=batting"
+        
+        # Configure request with timeout and retries
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+
+        # Parse HTML with lxml for better performance
+        soup = BeautifulSoup(response.content, 'lxml')
+        
+        # Find correct table using multiple identifiers
+        stats_table = soup.find('table', {
+            'class': 'engineTable',
+            'id': lambda x: x and 'ciHomeContent' in x
+        })
+        
+        if not stats_table:
+            return "Error: Batting stats table not found"
+
+        # Dynamic column index detection
+        headers = [th.get_text(strip=True) for th in stats_table.find_all('th')]
+        try:
+            duck_col_idx = headers.index('0')
+        except ValueError:
+            return "Error: '0' (ducks) column not found in table"
+
+        # Process rows with error checking
+        sum_ducks = 0
+        for row in stats_table.find_all('tr', class_='data1'):
+            cells = row.find_all('td')
+            if len(cells) > duck_col_idx:
+                duck_cell = cells[duck_col_idx].get_text(strip=True)
+                if duck_cell.isdigit():
+                    sum_ducks += int(duck_cell)
+
+        return sum_ducks
+
+    except requests.exceptions.RequestException as e:
+        return f"Network error: {str(e)}"
+    except Exception as e:
+        return f"Processing error: {str(e)}"
+
 
 # question = "What is the total number of ducks across players on page number 6"
 # print(GA4_1(question))
@@ -154,10 +179,13 @@ def GA4_4(question):
     # local_time = datetime.today()
     local_time = datetime.now(pytz.timezone(time_zone))
     print(local_time.date().strftime('%Y-%m-%d'))
-    date_list = pd.date_range(
-        local_time, periods=len(daily_high_values)).tolist()
-    date_list = [date_list[i].date().strftime('%Y-%m-%d')
-                 for i in range(len(date_list))]
+    # date_list = pd.date_range(local_time, periods=len(daily_high_values)).tolist()
+    date_list = [(local_time + timedelta(days=i)).strftime('%Y-%m-%d') for i in range(14)]
+
+    # Ensure lists have 14 entries
+    while len(daily_summary_list) < 14:
+        daily_summary_list.append("Data not available")
+        
     zipped = zip(date_list, daily_summary_list)
     df = pd.DataFrame(list(zipped), columns=['Date', 'Summary'])
     json_data = df.set_index('Date')['Summary'].to_json()
