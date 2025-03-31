@@ -4,22 +4,30 @@ import re
 import httpx
 import os
 
+
 def get_transcript(question):
     file_path = os.path.join(os.path.dirname(__file__), "transcript.xlsx")
     df = pd.read_excel(file_path)
     match = re.search(
-        r'between (\d+\.\d+) and (\d+\.\d+) seconds?', question, re.IGNORECASE)
-    start_time = float(match.group(1))
-    end_time = float(match.group(2))
+        r'between (\d+(?:\.\d+)?) and (\d+(?:\.\d+)?) seconds?', question, re.IGNORECASE)
+    if not match:
+        raise ValueError("Could not extract time range from the question.")
+    try:
+        start_time = int(float(match.group(1)))
+        end_time = int(float(match.group(2)))
+    except (ValueError, TypeError):
+        raise ValueError("Invalid time format extracted from the question.")
 
     transcript = ""
     for index, row in df.iterrows():
-        if row['timestamp'] >= start_time-1 and row['timestamp'] <= end_time+1:
+        if row['timestamp'] >= start_time and row['timestamp'] <= end_time:
             transcript += str(row['text'])+" "
     # print(transcript)
     return transcript
 
+
 API_KEY = "eyJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6IjIyZjIwMDE2NDArMUBkcy5zdHVkeS5paXRtLmFjLmluIn0.Oeg6lAaRenn3gnBWd6qaGscvatJ6ftTpvw-waESMVs8"
+
 
 def correct_transcript(transcript):
     BASE_URL = "https://aiproxy.sanand.workers.dev/openai/v1"

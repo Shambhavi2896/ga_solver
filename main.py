@@ -224,7 +224,7 @@ async def receive_question(question: str = Form(...), file: UploadFile = File(No
         else:
             answer = await fetch_answer(task_id=task_id, question=question, file_path="")
     elif task_id in ['GA4.10']:
-        answer = await read_answer(task_id=task_id, question=question)
+        answer = await fetch_answer(task_id=task_id, question=question, file_path=file)
     elif task_id in ['GA5.1', 'GA5.2', 'GA5.5', 'GA5.6', 'GA5.7']:
         if file:
             print(file)
