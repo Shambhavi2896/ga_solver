@@ -196,7 +196,7 @@ async def receive_question(question: str = Form(...), file: UploadFile = File(No
     elif task_id in ['GA2.9']:
         answer = "https://tds-ga2-9.vercel.app/api"
     elif task_id in ['GA2.10']:
-        answer = "https://3db5-223-178-84-140.ngrok-free.app/"
+        answer = "https://b45f-223-178-84-140.ngrok-free.app/"
     elif task_id in ["GA3.1", "GA3.2", "GA3.3", "GA3.5", "GA3.6"]:
         answer = await fetch_answer(task_id=task_id, question=question, file_path="")
     elif task_id in ["GA3.4"]:
@@ -224,7 +224,7 @@ async def receive_question(question: str = Form(...), file: UploadFile = File(No
         else:
             answer = await fetch_answer(task_id=task_id, question=question, file_path="")
     elif task_id in ['GA4.10']:
-        answer = await fetch_answer(task_id=task_id, question=question, file_path=file)
+        answer = await read_answer(task_id=task_id, question=question)
     elif task_id in ['GA5.1', 'GA5.2', 'GA5.5', 'GA5.6', 'GA5.7']:
         if file:
             print(file)
