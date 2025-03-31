@@ -141,6 +141,15 @@ async def receive_question(question: str = Form(...), file: UploadFile = File(No
         answer = await read_answer(task_id=task_id, question=question)
     elif task_id in ['GA1.2', 'GA1.4', 'GA1.5', 'GA1.7', 'GA1.9', 'GA1.18', 'GA1.3']:
         answer = await fetch_answer(task_id=task_id, question=question, file_path="")
+    elif task_id in ['GA1.3']:
+        if file:
+            print(file)
+            if not os.getenv('VERCEL'):
+                answer = await fetch_answer(task_id=task_id, question=question, file_path=file)
+            else:
+                answer = await read_answer(task_id=task_id, question=question)
+        else:
+            answer = await read_answer(task_id=task_id, question=question)
     elif task_id in ['GA1.16']:
         # print(os.getenv('VERCEL'))
         if file:
@@ -183,7 +192,7 @@ async def receive_question(question: str = Form(...), file: UploadFile = File(No
     elif task_id in ['GA2.7']:
         answer = "https://github.com/Shambhavi2896/test"
     elif task_id in ['GA2.8']:
-        answer = "https://hub.docker.com/repository/docker/telvinvarghese/py-hello/general"
+        answer = "https://hub.docker.com/repository/docker/shambhavi2896/ques/general"
     elif task_id in ['GA2.9']:
         answer = "https://tds-ga2-9.vercel.app/api"
     elif task_id in ['GA2.10']:
