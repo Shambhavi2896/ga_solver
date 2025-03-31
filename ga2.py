@@ -82,16 +82,13 @@ async def GA2_2(file, max_size=1500, target_width=800):
     return encoded  # Returning both path & Base64
 
 def GA2_4(question: str):
-    email = re.findall(
-        r'Run this program on Google Colab, allowing all required access to your email ID: ([\w. % +-]+@[\w.-] +\.\w+)', question)[0]
-    expiry_year = "2025"
-    data = f"{email} {expiry_year}"
-    
-    # Generate the SHA-256 hash
-    hash_output = hashlib.sha256(data.encode()).hexdigest()
-    
-    # Return the last 5 characters of the hash
-    return hash_output[-5:]
+   email = re.findall(
+       r'Run this program on Google Colab, allowing all required access to your email ID: ([\w. % +-]+@[\w.-] +\.\w+)', question)[0]
+   expiry_year = "2025"
+   print(email, expiry_year)
+   hash_value = hashlib.sha256(
+       f"{email} {expiry_year}".encode()).hexdigest()[-5:]
+   return hash_value
 
 def download_image(url, filename="lenna.webp"):
     """Downloads an image from the given URL and returns its absolute path."""
@@ -117,7 +114,8 @@ def count_light_pixels(image_path: str, threshold: float = 0.814):
 
 async def GA2_5(question: str, image_path: str):
     if image_path=="":
-        image_path = download_image("https://exam.sanand.workers.dev/lenna.webp")
+        # image_path = download_image("https://exam.sanand.workers.dev/lenna.webp")
+        image_path = os.path.join(os.path.dirname(__file__), "lenna.webp")
     threshold = re.search(
         r'Number of pixels with lightness > (\d+\.\d+)', question)[1]
     print(image_path, threshold)
