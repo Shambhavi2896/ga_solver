@@ -28,7 +28,9 @@ data = {{"model": model,"messages": messages}}
 headers = {{"Content-Type": "application/json","Authorization": "Bearer dummy_api_key"}}
 response = httpx.post("https://api.openai.com/v1/chat/completions", json=data, headers=headers)
 print(response.json())"""
-    return python_code
+    data_string = json.dumps(python_code, indent=4)
+
+    return data_string
 
 # question="""
 # DataSentinel Inc. is a tech company specializing in building advanced natural language processing (NLP) solutions. Their latest project involves integrating an AI-powered sentiment analysis module into an internal monitoring dashboard. The goal is to automatically classify large volumes of unstructured feedback and text data from various sources as either GOOD, BAD, or NEUTRAL. As part of the quality assurance process, the development team needs to test the integration with a series of sample inputs—even ones that may not represent coherent text—to ensure that the system routes and processes the data correctly.
@@ -147,7 +149,9 @@ def GA3_3(question: str):
         }
     }
 
-    return json_data  # Return parsed JSON object
+    data_string = json.dumps(json_data, indent=4)
+
+    return data_string
 
 
 # question="""
@@ -189,8 +193,9 @@ async def GA3_4(question: str, file: UploadFile):
             }
         ]
     }
+    data_string = json.dumps(json_data, indent=4)
 
-    return json_data
+    return data_string
 
 
 def GA3_5(question: str):
@@ -206,7 +211,8 @@ def GA3_5(question: str):
             "model": "text-embedding-3-small",
             "input": extracted_messages
         }
-        return result 
+        data_string = json.dumps(result, indent=4) 
+        return data_string 
     else:
         return {"error": "Invalid format"}
 
@@ -225,5 +231,6 @@ def most_similar(embeddings):
     phrase1,phrase2 = phrases[max_indices[0]],phrases[max_indices[1]]
     return (phrase1, phrase2)
     """
-    print(python_code)
-    return python_code
+    data_string = json.dumps(python_code, indent=4)
+
+    return data_string
