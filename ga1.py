@@ -398,9 +398,29 @@ async def GA1_14(question: str, zip_file: UploadFile):
 # Download and extract it. Use ls with options to list all files in the folder along with their date and file size.
 # What's the total size of all files at least 3352 bytes large and modified on or after Fri, 17 Aug, 2018, 4: 06 am IST?'
 
+import os
+import zipfile
+import re
+import datetime
+import pytz
+import io
+import subprocess
+from fastapi import UploadFile
 
 async def GA1_15(question: str, zip_file: UploadFile):
-    # Extract file size and modification date from the question
+    """
+    Process a zip file to calculate the total size of files meeting specific criteria:
+    - File size.
+    - Modification date.
+
+    Parameters:
+        question (str): The question containing the file size and date criteria.
+        zip_file (UploadFile): The uploaded zip file.
+
+    Returns:
+        int: The total size of all files meeting the criteria.
+    """
+    # Step 1: Extract file size and modification date from the question
     size_pattern = r"at least (\d+) bytes"
     date_pattern = r"modified on or after (.*) IST"
 
@@ -413,31 +433,59 @@ async def GA1_15(question: str, zip_file: UploadFile):
     # Extract modification date
     date_match = re.search(date_pattern, question)
     if not date_match:
-        raise ValueError(
-            "No modification date criterion found in the question.")
+        raise ValueError("No modification date criterion found in the question.")
 
     date_str = date_match.group(1).replace(' IST', '').strip()
     try:
-        target_timestamp = datetime.strptime(
-            date_str, "%a, %d %b, %Y, %I:%M %p")
-        target_timestamp = pytz.timezone(
-            "Asia/Kolkata").localize(target_timestamp)
+        target_timestamp = datetime.datetime.strptime(
+            date_str, "%a, %d %b, %Y, %I:%M %p"
+        )
+        target_timestamp = pytz.timezone("Asia/Kolkata").localize(target_timestamp)
     except ValueError as e:
         raise ValueError(f"Date format error: {e}")
 
-    # Read ZIP file in-memory
+    # Step 2: Read ZIP file in-memory
     zip_bytes = await zip_file.read()
-    total_size = 0
 
-    with zipfile.ZipFile(io.BytesIO(zip_bytes), "r") as zip_ref:
-        for zip_info in zip_ref.infolist():
-            # Convert ZIP modification time to datetime with IST timezone
-            file_mtime = datetime(*zip_info.date_time)
+    # Step 3: Extract zip file and process metadata
+    total_size = 0
+    extract_folder = "extracted_files"
+    os.makedirs(extract_folder, exist_ok=True)
+
+    # Save zip to a local file temporarily
+    temp_zip_path = os.path.join(extract_folder, "temp.zip")
+    with open(temp_zip_path, "wb") as temp_zip_file:
+        temp_zip_file.write(zip_bytes)
+
+    # Use 'unzip' command to extract the zip file (ensures timestamps are preserved)
+    print("Extracting files...")
+    unzip_command = f"unzip -o '{temp_zip_path}' -d {extract_folder}"
+    process = subprocess.run(unzip_command, shell=True, capture_output=True, text=True)
+
+    if process.returncode != 0:
+        print("Error during extraction. Ensure you have the 'unzip' utility installed.")
+        print(process.stderr)
+        return 0
+
+    print(f"Files extracted successfully to: {extract_folder}")
+
+    # Step 4: Gather file data and filter based on criteria
+    for root, dirs, files in os.walk(extract_folder):
+        for file in files:
+            file_path = os.path.join(root, file)
+            stat_info = os.stat(file_path)
+            file_size = stat_info.st_size
+            file_mtime = datetime.datetime.fromtimestamp(stat_info.st_mtime)
             file_mtime = pytz.timezone("Asia/Kolkata").localize(file_mtime)
 
             # Check if file meets size and modification date criteria
-            if zip_info.file_size >= min_size and file_mtime >= target_timestamp:
-                total_size += zip_info.file_size
+            if file_size >= min_size and file_mtime >= target_timestamp:
+                total_size += file_size
+
+    # Cleanup: Delete the temporary zip file and extracted files
+    os.remove(temp_zip_path)
+    # Optional: Clean up extracted files (use if necessary)
+    # shutil.rmtree(extract_folder)
 
     return total_size
 
