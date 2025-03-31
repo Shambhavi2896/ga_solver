@@ -86,10 +86,6 @@ def GA1_2_old(question):
 
 
 def GA1_2(question):
-    import re
-    import requests
-    import json
-
     pattern = r"Send a HTTPS request to (https?://[^\s]+) with the URL encoded parameter email set to ([\w.%+-]+@[\w.-]+\.\w+)"
     match = re.search(pattern, question)
 
@@ -101,24 +97,8 @@ def GA1_2(question):
         # Make a GET request with email as a query parameter
         response = requests.get(url, params={"email": email})
         result = response.json()
-
-        # Modify headers and encode the email in the URL
         result["headers"]["User-Agent"] = "HTTPie/3.2.4"
-        result["headers"]["X-Amzn-Trace-Id"] = "Root=1-67ea3fa7-0872b05a5eafaabd732288ad"
-        result["url"] = result["url"].replace("@", "%40")
-        result["origin"] = "54.196.214.153"
-
-        # Integrate the method at the end
-        input_data = result
-        output_data = input_data.copy()
-        output_data["headers"]["Accept"] = "*/*"
-        output_data["url"] = output_data["url"].replace("@", "%40")
-        
-        # Convert the data back to JSON and print
-        output_json = json.dumps(output_data, indent=4)
-        print(output_json)
-        
-        return output_data
+        return result
 
     return {"error": "Url and Email not found in the input text"}
 
@@ -131,71 +111,18 @@ EXT_TO_PARSER = {".js": "babel", ".ts": "typescript", ".json": "json", ".css": "
                  ".html": "html", ".md": "markdown", ".yaml": "yaml", ".yml": "yaml"}
 
 
-import subprocess
-import hashlib
-from fastapi import UploadFile
-
-import hashlib
-import subprocess
-import shutil
-import os
-from typing import Union
-
-def GA1_3(file_path: str) -> Union[str, dict]:
-    """
-    Process a file with Prettier and return its SHA-256 hash, or fallback to direct hashing.
-    
-    Args:
-        file_path: Path to the file to process
-        
-    Returns:
-        str: SHA-256 hash of formatted content (success)
-        dict: {"error": error_message} if processing fails
-        dict: {"hash": sha256} if falling back to direct hashing
-    """
+async def GA1_3(file: UploadFile):
     try:
-        # Read the file content
-        with open(file_path, 'rb') as f:
-            file_content = f.read()
-
-        # Find npx executable path
-        npx_path = shutil.which("npx")
-        if not npx_path:
-            # Try common locations on Windows
-            possible_paths = [
-                r"C:\Program Files\nodejs\npx.cmd",
-                r"C:\Program Files (x86)\nodejs\npx.cmd",
-                os.path.join(os.environ.get("APPDATA", ""), "npm", "npx.cmd"),
-                os.path.join(os.environ.get("LOCALAPPDATA", ""), "npm", "npx.cmd"),
-            ]
-
-            for path in possible_paths:
-                if os.path.exists(path):
-                    npx_path = path
-                    break
-
-        if not npx_path:
-            # If npx is not found, calculate hash directly
-            hash_value = hashlib.sha256(file_content).hexdigest()
-            return {"hash": hash_value}
-
-        # Run Prettier synchronously using subprocess.run
-        process = subprocess.run(
-            [npx_path, "-y", "prettier@3.4.2", "--parser", "markdown", file_path],
-            capture_output=True,
-            text=True
+        process = await asyncio.create_subprocess_exec(
+            "npx", "-y", "prettier@3.4.2", "--parser", "markdown",
+            stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE
         )
-
-        # Check if Prettier returned an error
-        if process.returncode != 0:
-            return {"error": f"Prettier failed: {process.stderr}"}
-
-        # Retrieve and hash the formatted output
-        formatted_output = process.stdout.encode("utf-8")
+        formatted_output, _ = await process.communicate(await file.read())
+        if not formatted_output:
+            {"error": "Prettier failed"}
         return hashlib.sha256(formatted_output).hexdigest()
 
     except Exception as e:
-        # Catch and return any exception that occurs
         return {"error": str(e)}
 
 # Let's make sure you can write formulas in Google Sheets. Type this formula into Google Sheets.
@@ -209,8 +136,12 @@ def GA1_4(question):
         rows, cols, start, step, begin, end = map(int, match.groups())
         if begin > 0:
             begin = begin-1
+        if step == 0:
+            answer = start*10
+        else:
+            arr = np.arange(start, start + (cols * step), step)
         answer = int(
-            np.sum(np.arange(start, start + cols * step, step)[begin:end]))
+            np.sum(arr[begin:end]))
         return answer
 
 # Let's make sure you can write formulas in Excel. Type this formula into Excel.
@@ -234,43 +165,35 @@ def GA1_5(question):
 # Just above this paragraph, there's a hidden input with a secret value.
 # What is the value in the hidden input?
 
-import re
-import requests
-from bs4 import BeautifulSoup
 
 def GA1_6(question, file_path=None):
     try:
         html_data = None
 
         # Check for URL in the question
-        if match := re.search(r"https?://[^\s]+", question):
-            source = match.group(0)
+        url_match = re.search(r"https?://[^\s]+", question)
+        if url_match:
+            source = url_match.group(0)
             response = requests.get(source, timeout=5)
             response.raise_for_status()
             html_data = response.text
         elif file_path:  # If a file is provided
             with open(file_path, "r", encoding="utf-8") as file:
                 html_data = file.read()
-        else:  # Extract HTML directly from the question
+        else:  # No URL or file, extract from the question itself
             soup = BeautifulSoup(question, "html.parser")
             div_text = soup.find("div")
             return div_text.get_text(strip=True) if div_text else ""
 
         # Parse the HTML and extract hidden input
-        if html_data:
-            soup = BeautifulSoup(html_data, "html.parser")
-            hidden_input = soup.find("input", {"type": "hidden"})
-            return hidden_input.get("value", "") if hidden_input else ""
-        
-        # Fallback return for no data
+        soup = BeautifulSoup(html_data, "html.parser")
+        hidden_input = soup.find("input", {"type": "hidden"})
+        return hidden_input.get("value", "") if hidden_input else ""
+
+    except (requests.RequestException, FileNotFoundError, IOError) as e:
+        print(f"Error: {e}")
         return ""
 
-    except requests.RequestException as e:
-        return {"error": f"Request failed: {str(e)}"}
-    except (FileNotFoundError, IOError) as e:
-        return {"error": f"File error: {str(e)}"}
-    except Exception as e:
-        return {"error": f"An unexpected error occurred: {str(e)}"}
 
 # How many Wednesdays are there in the date range 1980-01-25 to 2012-07-28?
 
@@ -318,78 +241,47 @@ def GA1_8(question: str, zip_file: UploadFile):
 
 # [{"name":"Alice","age":74},{"name":"Bob","age":87},{"name":"Charlie","age":92},{"name":"David","age":50},{"name":"Emma","age":47},{"name":"Frank","age":29},{"name":"Grace","age":44},{"name":"Henry","age":38},{"name":"Ivy","age":91},{"name":"Jack","age":62},{"name":"Karen","age":4},{"name":"Liam","age":91},{"name":"Mary","age":42},{"name":"Nora","age":82},{"name":"Oscar","age":50},{"name":"Paul","age":62}]
 # Sorted JSON:
-import re
-import json
+
 
 def GA1_9(question):
-    try:
-        # Extract JSON array and sorting keys using regex
-        json_match = re.search(r"\[.*?\]", question, re.DOTALL)
-        sort_match = re.search(
-            r"Sort this JSON array of objects by the value of the (\w+) field.*?tie, sort by the (\w+) field",
-            question, re.DOTALL
-        )
-        
-        if json_match and sort_match:
-            # Parse the JSON array
+    json_pattern = r"\[.*?\]|\{.*?\}"
+    sort_pattern = r"Sort this JSON array of objects by the value of the (\w+) field.*?tie, sort by the (\w+) field"
+
+    json_match = re.search(json_pattern, question, re.DOTALL)
+    sort_match = re.search(sort_pattern, question, re.DOTALL)
+
+    if json_match and sort_match:
+        try:
             json_data = json.loads(json_match.group())
-            
-            # Extract sorting keys dynamically
-            primary_key = sort_match.group(1)
-            secondary_key = sort_match.group(2)
-            
-            # Ensure valid JSON and sort dynamically
-            if isinstance(json_data, list) and all(isinstance(item, dict) for item in json_data):
-                sorted_data = sorted(
-                    json_data,
-                    key=lambda item: (
-                        item.get(primary_key, ""),  # Primary key with default value
-                        item.get(secondary_key, "")  # Secondary key with default value
-                    )
-                )
+            sort_keys = [sort_match.group(1), sort_match.group(2)]
+            # print(sort_keys)
+            if isinstance(json_data, list) and all(isinstance(d, dict) for d in json_data):
+                sorted_data = sorted(json_data, key=lambda x: tuple(
+                    x.get(k) for k in sort_keys))
                 return json.dumps(sorted_data, separators=(",", ":"))
             else:
-                return json.dumps({"error": "Invalid JSON structure"}, separators=(",", ":"))
+                return json.dumps(json_data, separators=(",", ":"))
 
-        return json.dumps({"error": "Pattern matching failed"}, separators=(",", ":"))
+        except json.JSONDecodeError:
+            return None
 
-    except json.JSONDecodeError:
-        return json.dumps({"error": "JSON parsing error"}, separators=(",", ":"))
-    except Exception as e:
-        return json.dumps({"error": f"Unexpected error: {str(e)}"}, separators=(",", ":"))
+    return None
 
 # Download and use multi-cursors and convert it into a single JSON object, where key = value pairs are converted into {key: value, key: value, ...}.
 # What's the result when you paste the JSON at tools-in -data-science.pages.dev/jsonhash and click the Hash button?
 
-import io
-import json
-import hashlib
-from fastapi import UploadFile
 
 async def GA1_10(file: UploadFile):
     try:
-        # Read and decode the file content
         content = await file.read()
-        
-        # Initialize a dictionary to store key-value pairs
-        data = {}
-        
-        # Process file content line by line
-        for line in io.StringIO(content.decode("utf-8")):
-            # Check if the line contains key-value pairs
-            if "=" in line:
-                key, value = map(str.strip, line.split("=", 1))
-                # Ensure key and value are added accurately to the dictionary
-                data[key] = value
-        
-        # Generate the hash of the JSON representation of the data
-        json_data = json.dumps(data, separators=(",", ":"), ensure_ascii=False)
-        return hashlib.sha256(json_data.encode()).hexdigest()
-    
-    except UnicodeDecodeError:
-        return {"error": "File encoding error. Ensure the file is UTF-8 encoded."}
-    except Exception as e:
-        return {"error": f"Unexpected error: {str(e)}"}
+        data = dict(
+            line.strip().split("=", 1)
+            for line in io.StringIO(content.decode("utf-8"))
+            if "=" in line
+        )
+    except Exception:
+        return {"error": "Error reading file"}
+    return hashlib.sha256(json.dumps(data, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
 
 # Let's make sure you know how to select elements using CSS selectors. Find all <div>s having a foo class in the hidden element below.
 # What's the sum of their data-value attributes?
@@ -417,72 +309,46 @@ def GA1_11(question):
 # What is the sum of all values associated with these symbols?
 
 
-import re
-import io
-import csv
-import zipfile
-from fastapi import UploadFile
-
 async def GA1_12(question: str, zip_file: UploadFile):
-    try:
-        # Regex patterns for extracting file information and symbols
-        file_pattern = r"(\w+\.\w+):\s*(?:CSV file|Tab-separated file) encoded in ([\w-]+)"
-        symbol_pattern = r"where the symbol matches ((?:[\w\d]+|\W)(?:\s*OR\s*(?:[\w\d]+|\W))*)"
+    # Regex patterns
+    file_pattern = r"(\w+\.\w+):\s*(?:CSV file|Tab-separated file) encoded in ([\w-]+)"
+    symbol_pattern = r"where the symbol matches ((?:[\w\d]+|\W)(?:\s*OR\s*(?:[\w\d]+|\W))*)"
 
-        # Extract file encodings
-        files = {
-            match.group(1): match.group(2).lower().replace('cp-', 'cp')
-            for match in re.finditer(file_pattern, question)
-        }
+    # Extract file encodings
+    files = {match.group(1): match.group(2).lower().replace('cp-', 'cp')
+             for match in re.finditer(file_pattern, question)}
 
-        # Extract target symbols
-        symbols_match = re.search(symbol_pattern, question)
-        target_symbols = set(symbols_match.group(1).split(" OR ")) if symbols_match else set()
+    # Extract symbols
+    symbols_match = re.search(symbol_pattern, question)
+    target_symbols = set(symbols_match.group(
+        1).split(" OR ")) if symbols_match else set()
 
-        # Initialize sum of values
-        total_sum = 0
+    total_sum = 0
 
-        # Read ZIP file in-memory
-        zip_bytes = await zip_file.read()
-        with zipfile.ZipFile(io.BytesIO(zip_bytes), "r") as zip_ref:
-            # Iterate through specified files and encodings
-            for file_name, encoding in files.items():
-                if file_name not in zip_ref.namelist():
-                    continue  # Skip missing files
-                
-                with zip_ref.open(file_name) as file:
-                    # Use TextIOWrapper for decoding file content
-                    decoded_content = io.TextIOWrapper(file, encoding=encoding)
+    # Read ZIP file in-memory
+    zip_bytes = await zip_file.read()
+    with zipfile.ZipFile(io.BytesIO(zip_bytes), "r") as zip_ref:
+        for file_name in files:
+            encoding = files[file_name]
+            if file_name not in zip_ref.namelist():
+                continue
 
-                    # Process files based on format
-                    if file_name.endswith(".csv"):
-                        # Handle CSV file
-                        reader = csv.reader(decoded_content)
-                        for row in reader:
-                            if len(row) >= 2 and row[0] in target_symbols:
-                                try:
-                                    total_sum += int(row[1])
-                                except ValueError:
-                                    pass  # Ignore invalid values
-                    elif file_name.endswith(".txt"):
-                        # Handle tab-separated file
-                        for line in decoded_content:
-                            parts = line.strip().split("\t")
-                            if len(parts) >= 2 and parts[0] in target_symbols:
-                                try:
-                                    total_sum += int(parts[1])
-                                except ValueError:
-                                    pass  # Ignore invalid values
+            with zip_ref.open(file_name) as file:
+                decoded_content = io.TextIOWrapper(file, encoding=encoding)
 
-        # Return the total sum
-        return total_sum
+                if file_name.endswith(".csv"):
+                    reader = csv.reader(decoded_content)
+                    for row in reader:
+                        if len(row) >= 2 and row[0] in target_symbols:
+                            total_sum += int(row[1])
 
-    except zipfile.BadZipFile:
-        return {"error": "Invalid ZIP file"}
-    except UnicodeDecodeError:
-        return {"error": "File encoding issue"}
-    except Exception as e:
-        return {"error": f"Unexpected error: {str(e)}"}
+                elif file_name.endswith(".txt"):
+                    for line in decoded_content:
+                        parts = line.strip().split("\t")
+                        if len(parts) >= 2 and parts[0] in target_symbols:
+                            total_sum += int(parts[1])
+
+    return total_sum
 
 # Let's make sure you know how to use GitHub. Create a GitHub account if you don't have one. Create a new public repository. Commit a single JSON file called email.json with the value {"email": "22f2001640@ds.study.iitm.ac.in"} and push it.
 # Enter the raw Github URL of email.json so we can verify it. (It might look like https://raw.githubusercontent.com/[GITHUB ID]/[REPO NAME]/main/email.json.)
@@ -493,64 +359,41 @@ async def GA1_12(question: str, zip_file: UploadFile):
 # What does running cat * | sha256sum in that folder show in bash?
 
 
-import re
-import io
-import hashlib
-import zipfile
-from fastapi import UploadFile
-
 async def GA1_14(question: str, zip_file: UploadFile):
-    try:
-        # Step 1: Extract words to replace and the replacement word from the question
-        pattern = r'replace all "([^"]+)" \(in upper, lower, or mixed case\) with "([^"]+)" in all files'
-        match = re.search(pattern, question, re.IGNORECASE)
-        if not match:
-            raise ValueError("Invalid question format: Unable to extract words.")
+    # Step 1: Extract words to replace and the replacement word from the question
+    pattern = r'replace all "([^"]+)" \(in upper, lower, or mixed case\) with "([^"]+)" in all files'
+    match = re.search(pattern, question, re.IGNORECASE)
+    if not match:
+        raise ValueError("Invalid question format: Unable to extract words.")
 
-        word_to_replace = match.group(1)  # The word to replace
-        replacement_word = match.group(2)  # The replacement word
+    word_to_replace = match.group(1)  # The word to replace
+    replacement_word = match.group(2)  # The replacement word
 
-        # Step 2: Read the ZIP file in-memory
-        zip_bytes = await zip_file.read()
-        sha256_hash = hashlib.sha256()
+    print("Word to replace:", word_to_replace)
+    print("Replacement word:", replacement_word)
 
-        with zipfile.ZipFile(io.BytesIO(zip_bytes), "r") as zip_ref:
-            # Create a new folder to extract files
-            extracted_files = []
+    # Step 2: Read ZIP file in-memory
+    zip_bytes = await zip_file.read()
+    sha256_hash = hashlib.sha256()
 
-            for filename in sorted(zip_ref.namelist()):  # Ensure consistent order
-                # Read the content of the file
-                with zip_ref.open(filename) as file:
-                    content = file.read()
+    with zipfile.ZipFile(io.BytesIO(zip_bytes), "r") as zip_ref:
+        file_contents = {}
 
-                # Detect line endings (\n, \r\n, etc.)
-                line_endings = '\n' if b'\n' in content else '\r\n'
-
-                # Decode, process replacements, and re-encode while maintaining line endings
-                content_decoded = content.decode("utf-8", errors="replace")
+        # Read and modify file contents
+        for filename in sorted(zip_ref.namelist()):  # Ensure consistent order
+            with zip_ref.open(filename) as file:
+                content = file.read().decode("utf-8")  # Decode file content
                 updated_content = re.sub(
-                    word_to_replace, 
-                    replacement_word, 
-                    content_decoded, 
-                    flags=re.IGNORECASE
-                ).replace('\n', line_endings)
+                    re.escape(word_to_replace), replacement_word, content, flags=re.IGNORECASE)
+                file_contents[filename] = updated_content.encode(
+                    "utf-8")  # Store modified content
 
-                # Add the updated file to the list for hashing
-                extracted_files.append(updated_content.encode("utf-8"))
+        # Compute hash from modified contents
+        for filename in sorted(file_contents.keys()):
+            sha256_hash.update(file_contents[filename])
 
-        # Compute the SHA-256 hash for the concatenated contents of all modified files
-        concatenated_data = b''.join(extracted_files)
-        sha256_hash.update(concatenated_data)
-
-        # Return the final SHA-256 hash
-        return sha256_hash.hexdigest()
-
-    except zipfile.BadZipFile:
-        return {"error": "Invalid ZIP file"}
-    except UnicodeDecodeError:
-        return {"error": "File encoding error. Ensure all files are UTF-8 encoded."}
-    except Exception as e:
-        return {"error": f"Unexpected error: {str(e)}"}
+    # Return the final SHA-256 hash value
+    return sha256_hash.hexdigest()
 
 # Download and extract it. Use ls with options to list all files in the folder along with their date and file size.
 # What's the total size of all files at least 3352 bytes large and modified on or after Fri, 17 Aug, 2018, 4: 06 am IST?'
@@ -642,6 +485,7 @@ async def GA1_16_LINX(zip_file: UploadFile):
     # Return checksum result
     return result.stdout.strip()
 
+
 async def GA1_16(zip_file: UploadFile):
     # Use "/tmp/" for Vercel, or local paths when running locally
     print(os.getenv("VERCEL"))
@@ -651,7 +495,7 @@ async def GA1_16(zip_file: UploadFile):
         return await GA1_16_Vercel("/tmp", zip_file)
 
 
-async def GA1_16_Vercel(BASE_DIR,zip_file: UploadFile):
+async def GA1_16_Vercel(BASE_DIR, zip_file: UploadFile):
     # Use "/tmp/" for Vercel, or local paths when running locally
     extract_folder = os.path.join(BASE_DIR, "extracted")
     merged_folder = os.path.join(BASE_DIR, "merged_folder")
